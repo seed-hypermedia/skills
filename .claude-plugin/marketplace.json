@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "seed-hypermedia",
-      "source": ".",
+      "source": "./",
       "description": "Read and write Seed Hypermedia documents, comments, and accounts.",
       "version": "0.0.1"
     }
