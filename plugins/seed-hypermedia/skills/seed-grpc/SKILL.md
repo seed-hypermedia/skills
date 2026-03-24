@@ -1,14 +1,14 @@
 ---
-name: seed-hypermedia-read
+name: seed-grpc
 description:
-  Read-only Seed Hypermedia gRPC operations for querying documents, comments, entities, accounts, and server metadata.
-  Use when the user wants to fetch or inspect Seed data without writing, updating, or deleting anything.
+  Low-level gRPC access to the local Seed Hypermedia daemon. Use when the user wants to query accounts, list documents,
+  inspect refs, or access daemon APIs not exposed by the CLI. Requires a running local Seed daemon.
 ---
 
-# Seed Hypermedia gRPC Skill
+# Seed gRPC Skill
 
-Scope: Read-only gRPC access to Seed Hypermedia. If the user wants to write, update, or delete, refuse and route to the
-**seed-hypermedia-write** skill.
+Scope: Read-only gRPC access to a local Seed Hypermedia daemon. If the user wants to write, update, or delete documents,
+route to the **seed-cli** skill.
 
 ## Prerequisites
 
@@ -94,7 +94,7 @@ grpcurl -plaintext <host:port> describe <message.type>
 ### 3. Parse User Intent
 
 - Extract what Seed operation is needed
-- If the request is **write/update/delete**, refuse and route to **seed-hypermedia-write** (do not call any gRPC method)
+- If the request is **write/update/delete**, refuse and route to **seed-cli** (do not call any gRPC method)
 - Parse any IRIs to get account, path, version, etc.
 - If needed service/method is unknown, use reflection to discover it (once)
 - Determine if this requires single or multiple calls
@@ -179,12 +179,12 @@ seed-cli document get hm://z6Mk.../my-doc -o doc.md
 seed-cli document get hm://z6Mk.../my-doc --json
 ```
 
-For piping exported markdown back into write operations, see the **seed-hypermedia-write** skill.
+For piping exported markdown back into write operations, see the **seed-cli** skill.
 
 ## Key Rules
 
 1. **Read-only only** - This skill must never call write/update/delete endpoints. Refuse any request that would modify
-   Seed data and route to **seed-hypermedia-write**.
+   Seed data and route to **seed-cli**.
 2. **Discover once per session** - Use reflection to learn API structure, then reuse that knowledge. The server won't
    likely change during the session.
 3. **Parse IRIs carefully** - Extract all components according to format above

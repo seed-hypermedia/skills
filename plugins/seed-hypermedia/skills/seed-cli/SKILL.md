@@ -1,14 +1,16 @@
 ---
-name: seed-hypermedia-write
+name: seed-cli
 description:
-  Write content to Seed Hypermedia documents and comments using the Seed CLI. Use when the user wants to create, update,
-  or modify Seed documents or comments.
+  Create, update, and read Seed Hypermedia documents and comments using the Seed CLI. Use when the user wants to write,
+  read, search, or manage Seed documents. Does NOT require a local Seed daemon — connects to remote servers
+  (hyper.media by default).
 ---
 
-# Seed Hypermedia Write Skill
+# Seed CLI Skill
 
-Scope: Write operations on Seed Hypermedia — creating/updating documents and creating comments. For read-only operations
-use the **seed-hypermedia-read** skill. For LLM-powered PDF import see the **seed-pdf-import** skill.
+Scope: Document operations on Seed Hypermedia via the Seed CLI — creating, updating, reading documents and comments,
+searching, and managing drafts. For low-level gRPC access to a local Seed daemon, use the **seed-grpc** skill. For
+LLM-powered PDF import see the **seed-pdf-import** skill.
 
 ## Prerequisites
 
@@ -368,7 +370,7 @@ seed-cli comment create <target-hm-id> --body "Comment" --key mykey --dev
 When the user asks to "draft", "write", "create a document", or any request that does not explicitly say "publish", use
 the draft-first workflow. **Never publish directly unless the user explicitly asks.**
 
-1. **Read first** — If updating an existing document, use the **seed-hypermedia-read** skill to fetch it.
+1. **Read first** — If updating an existing document, use the **seed-grpc** skill to fetch it.
 
 2. **Identify the key** — List available keys **from the target environment** and confirm which one to use. The
    environment flag on `key list` MUST match the flag you will use for publishing — networks are isolated and keys do
