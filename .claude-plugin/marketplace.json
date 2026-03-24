@@ -1,0 +1,18 @@
+{
+  "name": "seed-hypermedia-skills",
+  "owner": {
+    "name": "Seed Hypermedia"
+  },
+  "metadata": {
+    "description": "Agent skills for interacting with the Seed Hypermedia protocol.",
+    "version": "0.0.1"
+  },
+  "plugins": [
+    {
+      "name": "seed-hypermedia",
+      "source": ".",
+      "description": "Read and write Seed Hypermedia documents, comments, and accounts.",
+      "version": "0.0.1"
+    }
+  ]
+}
