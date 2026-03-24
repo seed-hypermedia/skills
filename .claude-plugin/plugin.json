@@ -1,0 +1,11 @@
+{
+  "name": "seed-hypermedia",
+  "description": "Agent skills for interacting with the Seed Hypermedia protocol — read and write documents, comments, and accounts.",
+  "version": "0.0.1",
+  "author": {
+    "name": "Seed Hypermedia"
+  },
+  "homepage": "https://github.com/seed-hypermedia/skills",
+  "repository": "https://github.com/seed-hypermedia/skills",
+  "license": "MIT"
+}
