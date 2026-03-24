@@ -220,7 +220,7 @@ CLI flags override frontmatter values. Frontmatter values override PDF-extracted
 ### JSON Blocks
 
 For precise control over the block tree structure, use JSON. See
-[references/seed-document-format.md](references/seed-document-format.md) for the complete block format reference.
+[../../references/seed-document-format.md](../../references/seed-document-format.md) for the complete block format reference.
 
 ```bash
 seed-cli document create -f blocks.json --name "Title" --key mykey

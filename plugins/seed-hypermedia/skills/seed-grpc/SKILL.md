@@ -199,6 +199,11 @@ For piping exported markdown back into write operations, see the **seed-cli** sk
    Document IRI or Comment IRI (e.g., `hm://<account>/...`), keep the `<account>` portion unchanged because it is part
    of the URL; if helpful, present the resolved display name separately alongside the IRI.
 
+## Document Model Reference
+
+For understanding the block tree structure, block types, annotations, and IRI format returned by gRPC document responses,
+see [../../references/seed-document-format.md](../../references/seed-document-format.md).
+
 ## Response Handling
 
 - Extract key Seed metadata (names, authors, timestamps)
