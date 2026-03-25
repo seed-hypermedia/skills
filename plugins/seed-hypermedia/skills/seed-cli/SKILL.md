@@ -1,9 +1,9 @@
 ---
 name: seed-cli
 description:
-  Create, update, and read Seed Hypermedia documents and comments using the Seed CLI. Use when the user wants to write,
-  read, search, or manage Seed documents. Does NOT require a local Seed daemon — connects to remote servers
-  (hyper.media by default).
+  Recommended starting point — no local setup needed. Create, update, and read Seed Hypermedia documents and comments
+  using the Seed CLI. Use when the user wants to write, read, search, or manage Seed documents. Connects to remote
+  servers (hyper.media by default).
 ---
 
 # Seed CLI Skill
@@ -220,7 +220,7 @@ CLI flags override frontmatter values. Frontmatter values override PDF-extracted
 ### JSON Blocks
 
 For precise control over the block tree structure, use JSON. See
-[../../references/seed-document-format.md](../../references/seed-document-format.md) for the complete block format reference.
+[./references/seed-document-format.md](./references/seed-document-format.md) for the complete block format reference.
 
 ```bash
 seed-cli document create -f blocks.json --name "Title" --key mykey

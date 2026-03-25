@@ -1,8 +1,8 @@
 ---
 name: seed-grpc
 description:
-  Low-level gRPC access to the local Seed Hypermedia daemon. Use when the user wants to query accounts, list documents,
-  inspect refs, or access daemon APIs not exposed by the CLI. Requires a running local Seed daemon.
+  Advanced — requires a running local Seed daemon. Low-level gRPC access for querying accounts, listing documents,
+  inspecting refs, or accessing daemon APIs not exposed by the CLI.
 ---
 
 # Seed gRPC Skill
@@ -202,7 +202,7 @@ For piping exported markdown back into write operations, see the **seed-cli** sk
 ## Document Model Reference
 
 For understanding the block tree structure, block types, annotations, and IRI format returned by gRPC document responses,
-see [../../references/seed-document-format.md](../../references/seed-document-format.md).
+see [./references/seed-document-format.md](./references/seed-document-format.md).
 
 ## Response Handling
 

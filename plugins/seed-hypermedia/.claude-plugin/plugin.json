@@ -1,7 +1,7 @@
 {
   "name": "seed-hypermedia",
   "description": "Agent skills for interacting with the Seed Hypermedia protocol — read and write documents, comments, and accounts.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": {
     "name": "Seed Hypermedia"
   },

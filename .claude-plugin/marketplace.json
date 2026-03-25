@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Agent skills for interacting with the Seed Hypermedia protocol.",
-    "version": "0.0.2"
+    "version": "0.0.3"
   },
   "plugins": [
     {
       "name": "seed-hypermedia",
       "source": "./plugins/seed-hypermedia",
       "description": "Read and write Seed Hypermedia documents, comments, and accounts.",
-      "version": "0.0.2"
+      "version": "0.0.3"
     }
   ]
 }
