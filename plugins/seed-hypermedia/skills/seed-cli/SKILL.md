@@ -16,28 +16,19 @@ LLM-powered PDF import see the **seed-pdf-import** skill.
 
 ### 1. Ensure CLI is Available and Up-to-Date
 
-The Seed CLI is distributed as the npm package **`@seed-hypermedia/cli`** (binary: `seed-cli`). Run the following **once
-per session** to install or update it:
+The Seed CLI is distributed as the npm package **`@seed-hypermedia/cli`** (binary: `seed-cli`).
+
+**Use `npx` to run it** — this avoids global install permission issues and always fetches the latest version:
 
 ```bash
-# Install seed-cli if not present
-if ! command -v seed-cli &>/dev/null; then
-  npm install -g @seed-hypermedia/cli
-fi
-
-# Update to latest if outdated
-LOCAL_V=$(seed-cli --version 2>/dev/null)
-LATEST_V=$(npm view @seed-hypermedia/cli version 2>/dev/null)
-if [ -n "$LATEST_V" ] && [ "$LOCAL_V" != "$LATEST_V" ]; then
-  npm install -g @seed-hypermedia/cli@latest
-fi
+npx -y @seed-hypermedia/cli@latest --help
 ```
 
-Verify the CLI is working:
+Throughout this skill, replace any `seed-cli <command>` with `npx -y @seed-hypermedia/cli@latest <command>`. The `-y`
+flag auto-confirms the install prompt. `npx` caches the package locally after first run, so subsequent calls are fast.
 
-```bash
-seed-cli --help
-```
+If the user already has `seed-cli` installed globally (check with `command -v seed-cli`), you may use `seed-cli`
+directly instead of the `npx` form.
 
 ### 2. Check Available Keys
 
@@ -392,6 +383,27 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
 
    - **Public key** (starts with `z6Mk`): look it up in the matching keyring.
    - **Private key or mnemonic**: derive the account ID using `seed-cli key derive`.
+
+   **Resolving unnamed keys:** Some keys have no human-friendly name — their `name` field equals their `accountId`
+   (both start with `z6Mk`). For these, resolve the author's display name from their profile:
+
+   ```bash
+   # For mainnet keys:
+   seed-cli account get <accountId>
+   # For devnet keys:
+   seed-cli account get <accountId> --dev
+   # For a custom domain (e.g., gabo.es):
+   seed-cli account get <accountId> --server https://gabo.es
+   ```
+
+   The response includes `metadata.name` — use this as the display name when presenting keys to the user.
+   For example, show `"Gabo" (z6Mko7..., mainnet)` instead of the raw `z6Mko7VaJL2s1DLR5coY86Px7baLvwaW1eM3NaXjtzAENG2c`.
+   If the profile fetch fails (account not registered on that server), fall back to showing the raw accountId.
+
+   The server to query depends on context:
+   - **Mainnet keys**: `https://hyper.media` (default, no `--server` needed)
+   - **Devnet keys**: `https://dev.hyper.media` (use `--dev` flag)
+   - **Custom domain**: if the user specified a domain like `gabo.es`, use `--server https://gabo.es`
 
 3. **Ask for the document path** — Before creating a document, always ask the user what path (`-p`) to publish under.
    The path determines the document's permanent URL (e.g., `hm://z6Mk.../the-path`). Never auto-generate or assume a
