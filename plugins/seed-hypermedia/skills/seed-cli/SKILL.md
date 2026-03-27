@@ -409,16 +409,54 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
    The path determines the document's permanent URL (e.g., `hm://z6Mk.../the-path`). Never auto-generate or assume a
    path — this decision belongs to the user.
 
+   **IMPORTANT — Web URLs ≠ document paths:** When the user provides a web URL (e.g.,
+   `mysite.hyper.media/discussions/my-doc`), do **not** blindly use the URL path segments as the document path.
+   A site's URL path belongs to a **specific space/account** identified by the domain, and display names in the UI
+   (breadcrumbs, navigation) can differ from actual paths (e.g., a document titled "Notes" may live at path
+   `/discussions`). You must:
+
+   a. **Resolve the space account** — Determine which account owns the site the user referenced:
+
+      ```bash
+      seed-cli document get "hm://<domain>" --server "https://<domain>"
+      ```
+
+      The account ID in the returned `hm://` URL is the space owner. Compare it against the user's signing key — if
+      they differ, **warn the user** that publishing with their key will create the document under their own account,
+      NOT under the space they referenced. Ask if that is intentional or if they need a different key/capability.
+
+   b. **Verify the actual path** — Do not trust display names. Fetch the document to confirm the path exists:
+
+      ```bash
+      seed-cli document get "hm://<account>/<suspected-path>" --server "https://<domain>"
+      ```
+
+      If it fails, search by title to discover the real path before proceeding.
+
 4. **Determine server context** — Mainnet (`https://hyper.media`) by default. If the user mentioned a custom server,
    testnet, or devnet, capture the URL and use `--server <url>` on all subsequent commands.
 
-5. **Research** — Search for related content (see [Research & Citation](#research--citation) below). Use `--server` if
+5. **Validate parent paths** — Before creating a document at a nested path (e.g., `docs/guides/intro`), verify that
+   every ancestor path exists under the **target account**. Check each level:
+
+   ```bash
+   # For path "docs/guides/intro", check:
+   seed-cli document get "hm://<account>/docs" --server <url>
+   seed-cli document get "hm://<account>/docs/guides" --server <url>
+   ```
+
+   If any ancestor is missing, **stop and warn the user** before proceeding. Offer these options:
+   - Create the missing parent document(s) first (with a minimal title matching the path segment)
+   - Choose a different, existing path
+   - Proceed anyway (document will appear orphaned — its parent will show as "red"/missing in the UI)
+
+6. **Research** — Search for related content (see [Research & Citation](#research--citation) below). Use `--server` if
    targeting a non-default server. This step is always performed, even when the user provides full content.
 
-6. **Prepare content** — Write markdown with frontmatter (preferred) or JSON blocks. Incorporate relevant citations from
+7. **Prepare content** — Write markdown with frontmatter (preferred) or JSON blocks. Incorporate relevant citations from
    the research step as inline hypermedia links.
 
-7. **Save draft** — Write the markdown to a temporary file, then save it as a draft:
+8. **Save draft** — Write the markdown to a temporary file, then save it as a draft:
 
    ```bash
    seed-cli draft create -f <temp-file>
@@ -427,7 +465,7 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
    The CLI validates the content (parses markdown, checks structure) and saves to the platform-specific drafts
    directory. The output includes the full path where the draft was saved.
 
-8. **Validate** — Run a dry-run using the draft slug to check the content renders correctly:
+9. **Validate** — Run a dry-run using the draft slug to check the content renders correctly:
 
    ```bash
    seed-cli draft get <slug> --pretty
@@ -435,8 +473,8 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
 
    Check stdout/stderr for any errors. If there are problems, fix the content, re-save the draft, and re-check.
 
-9. **Present follow-up actions** — Always end by telling the user what commands to run next. Use the draft slug (printed
-   in the `draft create` output) for all references:
+10. **Present follow-up actions** — Always end by telling the user what commands to run next. Use the draft slug (printed
+    in the `draft create` output) for all references:
 
    ```
    Draft saved as "<slug>"
@@ -460,7 +498,7 @@ When the user explicitly says "publish", "publish it", "push it live", or simila
   ```bash
   seed-cli document create -f <path-from-draft-create-output> --key <key> -p <path> [--dev] [--server <url>]
   ```
-- If no draft exists, generate content and publish directly (steps 1–6 from Draft Mode, then publish).
+- If no draft exists, generate content and publish directly (steps 1–7 from Draft Mode, then publish).
 - **Verify** — Read the document again to confirm the change was applied.
 
 ### Producing Content for Seed
@@ -713,12 +751,18 @@ field (the parser also accepts `title:` as a backward-compatible alias).
 4. **Always use --dev for testing** — Never write to production without explicit user confirmation. Mainnet and devnet
    are completely isolated networks — keys, documents, and accounts do not cross over between them. A key that exists on
    mainnet will produce a "Key not found" error when used with `--dev`, and vice versa.
-5. **Check key ownership** — The signing key must be the document owner's key or have a delegated capability.
-6. **Read before writing** — Always fetch the document first to understand its current state.
-7. **One operation at a time** — Don't batch multiple document updates in a single command.
-8. **Verify after publishing** — Read the document again to confirm changes applied correctly.
-9. **Never expose mnemonics** — Don't log or display mnemonic phrases in output.
-10. **Prefer markdown** — Use markdown with frontmatter for content generation; use JSON blocks only when precise block
+5. **Check key ownership and target account** — The signing key must be the document owner's key or have a delegated
+    capability. When the user references a web URL from a specific site/space, verify the signing key matches the
+    space's account — if it doesn't, warn the user that the document will be created under their personal account, not
+    the referenced space.
+6. **Validate parent paths before creating nested documents** — Before publishing at a nested path like `a/b/c`, verify
+    that parent documents (`a`, `a/b`) exist under the target account. Missing parents create orphaned documents that
+    display with broken/red parent links in the UI.
+7. **Read before writing** — Always fetch the document first to understand its current state.
+8. **One operation at a time** — Don't batch multiple document updates in a single command.
+9. **Verify after publishing** — Read the document again to confirm changes applied correctly.
+10. **Never expose mnemonics** — Don't log or display mnemonic phrases in output.
+11. **Prefer markdown** — Use markdown with frontmatter for content generation; use JSON blocks only when precise block
     control is needed.
 
 ## Server Configuration
