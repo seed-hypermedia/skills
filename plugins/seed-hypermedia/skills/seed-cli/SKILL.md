@@ -223,6 +223,10 @@ seed-cli document create -f blocks.json --name "Title" --key mykey
 
 The account ID is derived automatically from the signing key — no positional argument needed.
 
+**Important:** The document is always published under the signing key's own account. If you need to publish under a
+shared space/site account (e.g. a team site where you have WRITER capability), this is not currently supported by the
+CLI. Use the Seed desktop app for space publishing.
+
 ```bash
 # From a markdown file
 seed-cli document create -f content.md --key mykey
@@ -405,7 +409,11 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
    - **Devnet keys**: `https://dev.hyper.media` (use `--dev` flag)
    - **Custom domain**: if the user specified a domain like `gabo.es`, use `--server https://gabo.es`
 
-3. **Ask for the document path** — Before creating a document, always ask the user what path (`-p`) to publish under.
+3. **Check if the target is a shared space** — If the user wants to publish under a different account (e.g. a team
+   site), warn them that the CLI does not currently support this. `document create` always publishes under the signing
+   key's own account. For space publishing, recommend using the Seed desktop app.
+
+4. **Ask for the document path** — Before creating a document, always ask the user what path (`-p`) to publish under.
    The path determines the document's permanent URL (e.g., `hm://z6Mk.../the-path`). Never auto-generate or assume a
    path — this decision belongs to the user.
 
@@ -433,10 +441,10 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
 
       If it fails, search by title to discover the real path before proceeding.
 
-4. **Determine server context** — Mainnet (`https://hyper.media`) by default. If the user mentioned a custom server,
+5. **Determine server context** — Mainnet (`https://hyper.media`) by default. If the user mentioned a custom server,
    testnet, or devnet, capture the URL and use `--server <url>` on all subsequent commands.
 
-5. **Validate parent paths** — Before creating a document at a nested path (e.g., `docs/guides/intro`), verify that
+6. **Validate parent paths** — Before creating a document at a nested path (e.g., `docs/guides/intro`), verify that
    every ancestor path exists under the **target account**. Check each level:
 
    ```bash
@@ -449,14 +457,13 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
    - Create the missing parent document(s) first (with a minimal title matching the path segment)
    - Choose a different, existing path
    - Proceed anyway (document will appear orphaned — its parent will show as "red"/missing in the UI)
-
-6. **Research** — Search for related content (see [Research & Citation](#research--citation) below). Use `--server` if
+7. **Research** — Search for related content (see [Research & Citation](#research--citation) below). Use `--server` if
    targeting a non-default server. This step is always performed, even when the user provides full content.
 
-7. **Prepare content** — Write markdown with frontmatter (preferred) or JSON blocks. Incorporate relevant citations from
+8. **Prepare content** — Write markdown with frontmatter (preferred) or JSON blocks. Incorporate relevant citations from
    the research step as inline hypermedia links.
 
-8. **Save draft** — Write the markdown to a temporary file, then save it as a draft:
+9. **Save draft** — Write the markdown to a temporary file, then save it as a draft:
 
    ```bash
    seed-cli draft create -f <temp-file>
@@ -465,7 +472,7 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
    The CLI validates the content (parses markdown, checks structure) and saves to the platform-specific drafts
    directory. The output includes the full path where the draft was saved.
 
-9. **Validate** — Run a dry-run using the draft slug to check the content renders correctly:
+10. **Validate** — Run a dry-run using the draft slug to check the content renders correctly:
 
    ```bash
    seed-cli draft get <slug> --pretty
@@ -473,7 +480,7 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
 
    Check stdout/stderr for any errors. If there are problems, fix the content, re-save the draft, and re-check.
 
-10. **Present follow-up actions** — Always end by telling the user what commands to run next. Use the draft slug (printed
+11. **Present follow-up actions** — Always end by telling the user what commands to run next. Use the draft slug (printed
     in the `draft create` output) for all references:
 
    ```
@@ -498,7 +505,7 @@ When the user explicitly says "publish", "publish it", "push it live", or simila
   ```bash
   seed-cli document create -f <path-from-draft-create-output> --key <key> -p <path> [--dev] [--server <url>]
   ```
-- If no draft exists, generate content and publish directly (steps 1–7 from Draft Mode, then publish).
+- If no draft exists, generate content and publish directly (steps 1–8 from Draft Mode, then publish).
 - **Verify** — Read the document again to confirm the change was applied.
 
 ### Producing Content for Seed
@@ -631,6 +638,7 @@ seed-cli query z6Mk... --mode AllDescendants -q
 | "No changes found"      | Document doesn't exist on the target network                                                                                                                                                    | Verify the HM ID is correct and that you are targeting the right network (`--dev` or mainnet)             |
 | "API error (403)"       | Key lacks write permission                                                                                                                                                                      | Key must be the document owner or have a capability                                                       |
 | "API error (500)"       | Server-side error                                                                                                                                                                               | Check server URL, try again                                                                               |
+| "Document at wrong URL" | Used `document create` targeting a space path, but the CLI published under the signing key's account instead of the space account                                                               | Delete the orphan with `document delete`, then publish through the Seed desktop app. The CLI does not yet support `--account` for space publishing |
 
 ## Key Management
 
@@ -764,6 +772,10 @@ field (the parser also accepts `title:` as a backward-compatible alias).
 10. **Never expose mnemonics** — Don't log or display mnemonic phrases in output.
 11. **Prefer markdown** — Use markdown with frontmatter for content generation; use JSON blocks only when precise block
     control is needed.
+11. **Space publishing limitation** — The CLI does not support publishing documents under a different account (space)
+    than the signing key's own account. Even with WRITER capability on a shared space, `document create` publishes under
+    your account, not the space account. To publish under a shared space, use the Seed desktop app. An `--account` flag
+    is planned for a future CLI release.
 
 ## Server Configuration
 
