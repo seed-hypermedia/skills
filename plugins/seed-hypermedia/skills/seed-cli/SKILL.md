@@ -223,13 +223,16 @@ seed-cli document create -f blocks.json --name "Title" --key mykey
 
 The account ID is derived automatically from the signing key — no positional argument needed.
 
-**Important:** The document is always published under the signing key's own account. If you need to publish under a
-shared space/site account (e.g. a team site where you have WRITER capability), this is not currently supported by the
-CLI. Use the Seed desktop app for space publishing.
+**Space publishing:** By default, the document is published under the signing key's own account. To publish under a
+shared space/site account (e.g. a team site where you have WRITER capability), use the `--account` flag. The CLI
+automatically resolves the required capability from the target account.
 
 ```bash
 # From a markdown file
 seed-cli document create -f content.md --key mykey
+
+# Publish under a shared space/site account (requires WRITER or AGENT capability)
+seed-cli document create -f content.md --key mykey --account z6MkSpaceAccountId
 
 # From markdown with explicit metadata flags (override frontmatter)
 seed-cli document create -f content.md --name "My Document" --summary "Description" --key mykey
@@ -258,6 +261,8 @@ seed-cli document create -f content.md -p my-document --key mykey --dev
 - `-f, --file <path>`: Input file (format detected by extension: `.md`, `.json`, `.pdf`)
 - `-p, --path <path>`: Document path (e.g. "my-document"). Auto-generated from name if omitted.
 - `-k, --key <name>`: Signing key name or account ID
+- `-a, --account <uid>`: Target space/account UID — publish under a different account using a delegated capability.
+  The CLI automatically resolves a WRITER or AGENT capability for the signing key on the target account.
 - `--dry-run`: Preview extracted content without publishing
 - `--grobid-url <url>`: GROBID server URL for enhanced PDF extraction
 - `--dev`: Use development environment
@@ -410,8 +415,9 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
    - **Custom domain**: if the user specified a domain like `gabo.es`, use `--server https://gabo.es`
 
 3. **Check if the target is a shared space** — If the user wants to publish under a different account (e.g. a team
-   site), warn them that the CLI does not currently support this. `document create` always publishes under the signing
-   key's own account. For space publishing, recommend using the Seed desktop app.
+   site), use the `--account <uid>` flag. The CLI will automatically resolve a WRITER or AGENT capability for the
+   signing key on the target account. If no matching capability is found, the command fails with a clear error. To
+   check available capabilities beforehand: `seed-cli account capabilities hm://<space-account>`.
 
 4. **Ask for the document path** — Before creating a document, always ask the user what path (`-p`) to publish under.
    The path determines the document's permanent URL (e.g., `hm://z6Mk.../the-path`). Never auto-generate or assume a
@@ -430,8 +436,9 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
       ```
 
       The account ID in the returned `hm://` URL is the space owner. Compare it against the user's signing key — if
-      they differ, **warn the user** that publishing with their key will create the document under their own account,
-      NOT under the space they referenced. Ask if that is intentional or if they need a different key/capability.
+      they differ, use `--account <space-account-uid>` to publish under the space account. The CLI will automatically
+      resolve a WRITER/AGENT capability. If no capability exists, inform the user and ask them to get access from the
+      space owner.
 
    b. **Verify the actual path** — Do not trust display names. Fetch the document to confirm the path exists:
 
@@ -487,7 +494,7 @@ the draft-first workflow. **Never publish directly unless the user explicitly as
    Draft saved as "<slug>"
 
    Review:    seed-cli draft get <slug> --pretty
-   Publish:   seed-cli document create -f <path-from-output> --key <key> -p <path> [--server <url>]
+   Publish:   seed-cli document create -f <path-from-output> --key <key> -p <path> [--account <uid>] [--server <url>]
    Clean up:  seed-cli draft rm <slug>
    ```
 
@@ -503,7 +510,7 @@ When the user explicitly says "publish", "publish it", "push it live", or simila
 
 - If a draft already exists for the document, publish from the draft (use the path from `draft create` output):
   ```bash
-  seed-cli document create -f <path-from-draft-create-output> --key <key> -p <path> [--dev] [--server <url>]
+  seed-cli document create -f <path-from-draft-create-output> --key <key> -p <path> [--account <uid>] [--dev] [--server <url>]
   ```
 - If no draft exists, generate content and publish directly (steps 1–8 from Draft Mode, then publish).
 - **Verify** — Read the document again to confirm the change was applied.
@@ -638,7 +645,8 @@ seed-cli query z6Mk... --mode AllDescendants -q
 | "No changes found"      | Document doesn't exist on the target network                                                                                                                                                    | Verify the HM ID is correct and that you are targeting the right network (`--dev` or mainnet)             |
 | "API error (403)"       | Key lacks write permission                                                                                                                                                                      | Key must be the document owner or have a capability                                                       |
 | "API error (500)"       | Server-side error                                                                                                                                                                               | Check server URL, try again                                                                               |
-| "Document at wrong URL" | Used `document create` targeting a space path, but the CLI published under the signing key's account instead of the space account                                                               | Delete the orphan with `document delete`, then publish through the Seed desktop app. The CLI does not yet support `--account` for space publishing |
+| "Document at wrong URL" | Used `document create` without `--account`, so the document was published under the signing key's own account instead of the intended space account | Delete the orphan with `document delete`, then re-publish with `--account <space-uid>` to target the correct account |
+| "No WRITER or AGENT capability found" | The signing key has no delegated capability on the target account specified via `--account` | Ask the space owner to grant a WRITER or AGENT capability to your key, or verify the account UID is correct |
 
 ## Key Management
 
@@ -772,10 +780,10 @@ field (the parser also accepts `title:` as a backward-compatible alias).
 10. **Never expose mnemonics** — Don't log or display mnemonic phrases in output.
 11. **Prefer markdown** — Use markdown with frontmatter for content generation; use JSON blocks only when precise block
     control is needed.
-11. **Space publishing limitation** — The CLI does not support publishing documents under a different account (space)
-    than the signing key's own account. Even with WRITER capability on a shared space, `document create` publishes under
-    your account, not the space account. To publish under a shared space, use the Seed desktop app. An `--account` flag
-    is planned for a future CLI release.
+11. **Space publishing with `--account`** — To publish under a shared space/site account, use `--account <uid>` on
+    `document create`. The CLI automatically resolves a WRITER or AGENT capability for the signing key on the target
+    account. Without `--account`, documents are always published under the signing key's own account. If no matching
+    capability exists, the command fails with a descriptive error.
 
 ## Server Configuration
 
