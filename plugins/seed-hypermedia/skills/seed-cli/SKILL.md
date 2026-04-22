@@ -217,6 +217,48 @@ For precise control over the block tree structure, use JSON. See
 seed-cli document create -f blocks.json --name "Title" --key mykey
 ```
 
+## Resolving Web URLs
+
+Any CLI command that takes an `hm://` ID also accepts a plain `https://` URL (e.g., `seed-cli document get`,
+`document update`, `comment list`, `comment create`, `query`). Prefer the URL form when the user pastes one — there is
+no need to resolve the domain to an account UID first.
+
+- The server is inferred from the URL origin; `--server` is **not required** when passing a URL.
+- Fragments are preserved through URL resolution: `#<blockId>` and `#<blockId>[start:end]` (character ranges).
+- **Anti-pattern:** do **not** wrap a domain in `hm://` (e.g., `hm://seedteamtalks.hyper.media`). `hm://` authorities
+  are account UIDs, not hostnames. Site domains are strictly for HTTP routing — pass the full `https://` URL instead.
+
+```bash
+# ✓ Works — auto-detects server from URL origin, no --server needed
+seed-cli document get "https://seedteamtalks.hyper.media/discussions/how-to-bring-legalize-es-to-seed"
+seed-cli comment list "https://seedteamtalks.hyper.media/discussions/how-to-bring-legalize-es-to-seed"
+seed-cli document get "https://hyper.media"  # bare domain → root doc
+
+# ✓ Works — URL with block fragment
+seed-cli document get "https://seedteamtalks.hyper.media/discussions/how-to-bring-legalize-es-to-seed#vHwg_kR0"
+
+# ✗ Fails — do NOT construct hm:// from a domain name
+seed-cli document get "hm://seedteamtalks.hyper.media" --server "https://seedteamtalks.hyper.media"
+# → invalid_argument: failed to parse account 'seedteamtalks.hyper.media': selected encoding not supported
+```
+
+### Fallback: HTTP Identity Headers
+
+When the CLI is not available (shell scripts, bespoke tooling), every Seed site page exposes identity headers on
+GET/HEAD/OPTIONS. They are CORS-exposed and URL-encoded.
+
+- `X-Hypermedia-Id` — canonical `hm://<account>/<path>` (URL-encoded)
+- `X-Hypermedia-Version` — current version CID
+- `X-Hypermedia-Type` — `Document` or `Comment`
+- `X-Hypermedia-Title`, `X-Hypermedia-Authors`
+- `X-Hypermedia-Target` — (comment pages only) `hm://` of the target document being commented on
+
+Values are URL-encoded; decode before use. Example:
+
+```bash
+curl -sI "https://site.hyper.media/my-doc" | awk '/x-hypermedia-id/ {print}' | python3 -c 'import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read().split(": ", 1)[1]))'
+```
+
 ## Write Operations
 
 ### Create a New Document
@@ -340,26 +382,68 @@ When using `-f`, the CLI performs a per-block diff against the existing document
 
 ### Create a Comment
 
+`<target>` accepts either an `hm://` ID or a plain `https://` URL (see
+[Resolving Web URLs](#resolving-web-urls)). A `#<blockId>` fragment on the target triggers block-level quoting (see
+subsection b below). Block-level quoting and `--reply` threading are independent axes — they compose.
+
+#### (a) Plain comment
+
 ```bash
 # Inline text
-seed-cli comment create <target-hm-id> --body "My comment" --key mykey
+seed-cli comment create <target> --body "My comment" --key mykey
 
 # From a file
-seed-cli comment create <target-hm-id> --file comment.md --key mykey
-
-# Reply to an existing comment
-seed-cli comment create <target-hm-id> --body "Reply text" --reply <comment-id> --key mykey
+seed-cli comment create <target> --file comment.md --key mykey
 
 # Development mode
-seed-cli comment create <target-hm-id> --body "Comment" --key mykey --dev
+seed-cli comment create <target> --body "Comment" --key mykey --dev
+```
+
+#### (b) Block-level quoted reply
+
+To produce the "quote + reply" format used in Seed discussions, pass the target with a `#<blockId>` fragment. The CLI
+automatically wraps the comment body in an `Embed` block pointing at the quoted block. For precise character-range
+quotes, use `#<blockId>[start:end]`.
+
+```bash
+# Quote a whole block
+seed-cli comment create "hm://<account>/<path>#<blockId>" --body "My reply" --key mykey
+
+# Quote a character range within the block
+seed-cli comment create "hm://<account>/<path>#<blockId>[start:end]" --body "My reply" --key mykey
+
+# Same, using a web URL (server inferred from origin — no --server needed)
+seed-cli comment create "https://<site>/<path>#<blockId>" --body "My reply" --key mykey
+```
+
+Use the `blockRef` field from `search --type hybrid` results to identify blocks to quote. Character ranges come from
+`HMBlockRange` objects emitted during rich-text selection; in markdown workflows, prefer whole-block quoting
+(`#<blockId>` without a range).
+
+#### (c) Threaded reply (`--reply`)
+
+```bash
+# Reply to an existing comment (threading)
+seed-cli comment create <target> --body "Reply text" --reply <comment-id> --key mykey
+```
+
+`--reply <commentId>` threads the new comment under another comment (reply parent). For the comment-ID shape expected
+here (and by `comment get`), see
+[Finding Document and Comment IDs](#finding-document-and-comment-ids).
+
+#### (d) Combined — threaded reply that also quotes a block
+
+```bash
+seed-cli comment create "https://<site>/<path>#<blockId>" --reply <parentCommentId> --body "..." --key mykey
 ```
 
 **Parameters:**
 
-- `<target-hm-id>`: Hypermedia ID of the document to comment on
+- `<target>`: `hm://` ID **or** `https://` URL of the document to comment on. A `#<blockId>` or `#<blockId>[start:end]`
+  fragment auto-wraps the body in an `Embed` block (block-level quoted reply).
 - `--body`: Comment text (inline)
 - `--file`: Read comment text from a file
-- `--reply`: Reply to an existing comment by its ID
+- `--reply`: Reply to an existing comment by its ID — independent of block-level quoting; combine freely
 - `-k, --key`: Signing key name or account ID
 - `--dev`: Use development environment
 
@@ -620,9 +704,10 @@ If any step fails (network error, server unreachable, no relevant results), skip
 them. Never let the research phase block the write operation. Log a brief note to the user that search was unavailable
 so they know citations were skipped.
 
-### Finding Document IDs
+### Finding Document and Comment IDs
 
-If the user refers to a document by name rather than ID, search for it:
+If the user provides a web URL, pass it directly to the command — the CLI resolves it and infers the server from the
+URL origin (see [Resolving Web URLs](#resolving-web-urls)). Search only when the user refers to a document by name.
 
 ```bash
 # Search for documents by name
@@ -633,6 +718,26 @@ seed-cli search "document name" --type semantic
 
 # List all documents in a space
 seed-cli query z6Mk... --mode AllDescendants -q
+```
+
+#### Comment IDs for `comment get`
+
+Comment IDs passed to `seed-cli comment get` must be in the form `<authorAccount>/<commentShortId>` — **both parts,
+slash-separated**. The bare short ID fails (HTTP 500), and so do `hm://` prefixes and full web URLs.
+
+- From `comment list --json`: use the `id` field directly (already in the correct form).
+- From a comment web URL like `https://<site>/<path>/:comments/<authorAccount>/<shortId>?v=...`: extract the two
+  segments after `:comments/`.
+- With a non-default server, always pass `--server <url>` (the raw ID has no origin to infer from).
+
+```bash
+# ✓ Right — <authorAccount>/<shortId>
+seed-cli comment get "z6Mkq9.../z6GRZhFTZoYFG8" --server "https://seedteamtalks.hyper.media"
+
+# ✗ All of these return HTTP 500
+seed-cli comment get "z6GRZhFTZoYFG8" --server "https://seedteamtalks.hyper.media"
+seed-cli comment get "hm://z6Mkq9.../z6GRZhFTZoYFG8" --server "https://seedteamtalks.hyper.media"
+seed-cli comment get "https://seedteamtalks.hyper.media/discussions/my-doc/:comments/z6Mkq9.../z6GRZhFTZoYFG8" --server "https://seedteamtalks.hyper.media"
 ```
 
 ## Error Handling
@@ -647,6 +752,7 @@ seed-cli query z6Mk... --mode AllDescendants -q
 | "API error (500)"       | Server-side error                                                                                                                                                                               | Check server URL, try again                                                                               |
 | "Document at wrong URL" | Used `document create` without `--account`, so the document was published under the signing key's own account instead of the intended space account | Delete the orphan with `document delete`, then re-publish with `--account <space-uid>` to target the correct account |
 | "No WRITER or AGENT capability found" | The signing key has no delegated capability on the target account specified via `--account` | Ask the space owner to grant a WRITER or AGENT capability to your key, or verify the account UID is correct |
+| `HTTP 500 from Comment: Internal Server Error` | `comment get` was passed a bare short ID, `hm://` form, or full web URL | Use `<authorAccount>/<shortId>` form; extract both segments from the URL path after `:comments/` |
 
 ## Key Management
 
