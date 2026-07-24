@@ -32,19 +32,40 @@ directly instead of the `npx` form.
 
 ### 2. Check Available Keys
 
-Keys are stored in the OS keyring, shared with the Seed daemon. The account ID is derived automatically from the signing
-key.
+The CLI resolves signing keys from **two sources** (vault support requires `@seed-hypermedia/cli` >= 0.2.0 — the
+`npx ...@latest` form always qualifies):
 
-**IMPORTANT:** Mainnet and devnet use **separate keyrings**. A key from one network does not exist in the other. Always
-list keys with the **same environment flag** you will use for publishing — use `key list --dev` when you intend to
-publish with `--dev`, and `key list` (no flag) when targeting mainnet.
+1. **The vault** (`vault.json`) — the encrypted identity store used by the daemon and desktop app. Identities created
+   in the desktop app (the user's real accounts) are available for signing. Read-only: the CLI never modifies the
+   vault. Discovery order: `--vault <path>` flag → `SEED_VAULT_PATH` env var → `vaultPath` in `~/.seed/config.json`
+   (`seed-cli config --vault-path <path>`) → well-known locations (Linux desktop app:
+   `~/.config/Seed/daemon/vault.json`, `Seed-dev` with `--dev`; macOS:
+   `~/Library/Application Support/Seed/daemon/vault.json`; bare daemon: `~/.mtt/vault.json`). The vault's decryption
+   secret (KEK) comes from the OS keychain (service `seed-hypermedia-vault-secret-v2`); on headless machines pass
+   `SEED_VAULT_KEK` (base64, 32 bytes) directly — treat it like a private key.
+2. **The OS keyring** — legacy store, still used for keys the CLI creates itself (`key generate` / `key import`).
+   Service `seed-daemon-main` (mainnet) or `seed-daemon-dev` (devnet).
+
+When a name/account exists in both, the vault wins. `key list` shows a `source` field (`vault` or `keyring`) per key.
+No daemon needs to be running. **Mainnet identities typically live in the desktop app's vault**, not the keyring — an
+empty or missing `seed-daemon-main` keyring does NOT mean there are no mainnet keys; always check `key list` (vault
+included). If `key list` output has no `source` field, the installed CLI predates vault support — use the
+`npx ...@latest` form instead. Full reference: `docs/KEYS.md` shipped with the npm package
+(https://unpkg.com/@seed-hypermedia/cli/docs/KEYS.md).
+
+**IMPORTANT:** Mainnet and devnet use **separate keyrings and separate vaults**. A key from one network does not exist
+in the other. Always list keys with the **same environment flag** you will use for publishing — use `key list --dev`
+when you intend to publish with `--dev`, and `key list` (no flag) when targeting mainnet.
 
 ```bash
-# List keys (mainnet — production)
+# List keys (mainnet — production; vault + keyring, with source field)
 seed-cli key list
 
 # List keys (devnet — development)
 seed-cli key list --dev
+
+# Read a specific vault file explicitly
+seed-cli --vault /path/to/vault.json key list
 ```
 
 If no keys exist, the user must import or generate one:
